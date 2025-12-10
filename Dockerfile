@@ -6,22 +6,24 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install ALL dependencies (including dev for build)
+RUN npm ci && npm cache clean --force
 
 # Copy source code
 COPY . .
+
+# Run the build (compiles TS to JS)
+RUN npm run build
 
 # Production stage
 FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy built dependencies from builder
+# Copy built application (including compiled JS)
+COPY --from=builder /app/build ./build
 COPY --from=builder /app/node_modules ./node_modules
-
-# Copy source code
-COPY . .
+COPY --from=builder /app/package*.json ./
 
 # Expose port
 EXPOSE 3231
