@@ -3,30 +3,29 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# 1. Copy package files
+# Copy only package files first
 COPY package*.json ./
 
-# 2. Install ALL dependencies (devDependencies needed for build)
-RUN npm ci
+# Install dependencies BUT skip the deadly "prepare" script
+RUN npm ci --ignore-scripts
 
-# 3. NOW copy the rest of the source code (including tsconfig.json)
+# Now copy source code (tsconfig.json finally arrives)
 COPY . .
 
-# 4. Build the TypeScript code
+# Manually run the build script now that everything exists
 RUN npm run build
+
+# Re-install only production dependencies for the final image (tiny & secure)
+RUN npm ci --only=production
 
 # ---------- Runtime ----------
 FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy only what we actually need at runtime
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package*.json ./
-
-# Optional: copy .env.example or other tiny runtime files if you use them
-# COPY --from=builder /app/.env.example ./
+COPY --from=builder /app/package.json ./
 
 EXPOSE 3231
 
